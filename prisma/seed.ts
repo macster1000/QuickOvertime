@@ -5,11 +5,9 @@ import { db as prisma } from "../lib/db";
 async function main() {
   console.log("Starting database seeding...");
 
-  const employeeCount = await prisma.employee.count();
-  if (employeeCount > 0) {
-    console.log("Database already has employees. Skipping seeding.");
-    return;
-  }
+  console.log("Clearing existing database entries for a clean seed...");
+  await prisma.request.deleteMany({});
+  await prisma.employee.deleteMany({});
 
   const pinHashAdmin = bcrypt.hashSync("1234", 10);
   const pinHashEmployee = bcrypt.hashSync("1111", 10);
