@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  EMPLOYEE
+  ADMIN
+}
+
+enum RequestType {
+  OVERTIME     // Plusstunden (+)
+  COMPENSATION // Freizeitausgleich (-)
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Employee {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  pinHash   String    // BCrypt Hash of the 4-digit PIN
+  role      Role      @default(EMPLOYEE)
+  active    Boolean   @default(true)
+  requests  Request[]
+  createdAt DateTime  @default(now())
+}
+
+model Request {
+  id           Int         @id @default(autoincrement())
+  employeeId   Int
+  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type         RequestType @default(OVERTIME)
+  date         DateTime    // Date of the overtime/compensation
+  hours        Float       // Positive number of hours (e.g. 1.5 or 4.0)
+  reason       String      // Reason for the request
+  status       Status      @default(PENDING)
+  adminComment String?     // Optional admin rejection comment
+  createdAt    DateTime    @default(now())
+}
