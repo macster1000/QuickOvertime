@@ -51,8 +51,9 @@ export default function SubmitRequestModal() {
           setSuccess(false);
         }, 1800);
       }
-    } catch (err) {
-      setError("Ein unerwarteter Fehler ist aufgetreten.");
+    } catch (err: any) {
+      console.error("DEBUG SUBMIT ERROR:", err);
+      setError(`Ein unerwarteter Fehler ist aufgetreten: ${err?.message || err}`);
     } finally {
       setLoading(false);
     }

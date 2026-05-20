@@ -71,20 +71,22 @@ export async function createRequestAction(
   hours: number,
   reason: string
 ): Promise<ActionResponse> {
-  const session = await getSession();
-  if (!session) {
-    return { error: "Nicht autorisiert. Bitte melde dich erneut an." };
-  }
-
-  if (!dateStr || !hours || !reason) {
-    return { error: "Bitte fülle alle Pflichtfelder aus." };
-  }
-
-  if (hours <= 0) {
-    return { error: "Die Stundenzahl muss größer als 0 sein." };
-  }
-
   try {
+    console.log("createRequestAction called with:", { type, dateStr, hours, reason });
+    const session = await getSession();
+    console.log("createRequestAction session retrieved:", session);
+    if (!session) {
+      return { error: "Nicht autorisiert. Bitte melde dich erneut an." };
+    }
+
+    if (!dateStr || !hours || !reason) {
+      return { error: "Bitte fülle alle Pflichtfelder aus." };
+    }
+
+    if (hours <= 0) {
+      return { error: "Die Stundenzahl muss größer als 0 sein." };
+    }
+
     const date = new Date(dateStr);
     
     const newRequest = await db.request.create({
@@ -97,6 +99,7 @@ export async function createRequestAction(
         status: Status.PENDING,
       },
     });
+    console.log("createRequestAction request created in db:", newRequest);
 
     // Send WhatsApp Push Notification in background (non-blocking)
     sendWhatsAppNotification({
@@ -110,9 +113,9 @@ export async function createRequestAction(
     revalidatePath("/dashboard");
     revalidatePath("/admin");
     return { success: true };
-  } catch (error) {
-    console.error("Create request action error:", error);
-    return { error: "Fehler beim Einreichen des Antrags." };
+  } catch (error: any) {
+    console.error("CRITICAL EXCEPTION in createRequestAction:", error);
+    return { error: `Fehler beim Einreichen des Antrags: ${error?.message || error}` };
   }
 }
 
