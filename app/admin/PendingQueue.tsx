@@ -4,6 +4,13 @@ import { useState } from "react";
 import { updateRequestStatusAction } from "@/lib/actions";
 import { Status, RequestType } from "@prisma/client";
 
+const TYPE_CONFIG: Record<string, { label: string; emoji: string; color: string; sign: string }> = {
+  OVERTIME: { label: "Überstunden", emoji: "➕", color: "var(--success)", sign: "+" },
+  COMPENSATION: { label: "Freizeitausgleich", emoji: "➖", color: "var(--primary-light)", sign: "-" },
+  VACATION: { label: "Urlaub", emoji: "🏖️", color: "hsl(32, 95%, 55%)", sign: "" },
+  OVERTIME_REDUCTION: { label: "ÜStd.-Abbau", emoji: "⏳", color: "hsl(280, 70%, 60%)", sign: "-" },
+};
+
 interface PendingRequest {
   id: number;
   type: RequestType;
@@ -121,13 +128,18 @@ export default function PendingQueue({ initialRequests }: { initialRequests: Pen
           const isOvertime = req.type === RequestType.OVERTIME;
           const isBusy = loadingId === req.id;
           const isRejecting = rejectingId === req.id;
+          const tCfg = TYPE_CONFIG[req.type] || TYPE_CONFIG.OVERTIME;
+          const isVacation = req.type === RequestType.VACATION;
+          const displayVal = isVacation
+            ? `${(req.hours / 8).toFixed(1).replace(".", ",")} Tage`
+            : `${tCfg.sign}${req.hours.toFixed(2).replace(".", ",")} Std.`;
 
           return (
             <div
               key={req.id}
               className="card"
               style={{
-                borderLeft: isOvertime ? "4px solid var(--success)" : "4px solid var(--primary-light)",
+                borderLeft: `4px solid ${tCfg.color}`,
                 display: "flex",
                 flexDirection: "column",
                 gap: "1rem",
@@ -148,12 +160,12 @@ export default function PendingQueue({ initialRequests }: { initialRequests: Pen
                   <span style={{
                     fontSize: "1.25rem",
                     fontWeight: "800",
-                    color: isOvertime ? "var(--success)" : "var(--primary-light)"
+                    color: tCfg.color
                   }}>
-                    {isOvertime ? "+" : "-"}{req.hours.toFixed(2).replace(".", ",")} Std.
+                    {displayVal}
                   </span>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "500" }}>
-                    {isOvertime ? "Überstunden" : "Freizeitausgleich"}
+                    {tCfg.emoji} {tCfg.label}
                   </span>
                 </div>
               </div>

@@ -4,6 +4,13 @@ import { useState } from "react";
 import { createRequestAction } from "@/lib/actions";
 import { RequestType } from "@prisma/client";
 
+const TYPE_CONFIG = {
+  [RequestType.OVERTIME]: { label: "Überstunden", emoji: "➕", color: "var(--success)" },
+  [RequestType.COMPENSATION]: { label: "Freizeitausgleich", emoji: "➖", color: "var(--primary-light)" },
+  [RequestType.VACATION]: { label: "Urlaub", emoji: "🏖️", color: "hsl(32, 95%, 55%)" },
+  [RequestType.OVERTIME_REDUCTION]: { label: "ÜStd.-Abbau", emoji: "⏳", color: "hsl(280, 70%, 60%)" },
+};
+
 export default function SubmitRequestModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [type, setType] = useState<RequestType>(RequestType.OVERTIME);
@@ -14,6 +21,10 @@ export default function SubmitRequestModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const isVacation = type === RequestType.VACATION;
+  const unit = isVacation ? "Tage" : "Std.";
+  const displayValue = isVacation ? (hours / 8).toFixed(1).replace(".", ",") : hours.toFixed(2).replace(".", ",");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,12 +42,10 @@ export default function SubmitRequestModal() {
         setError(res.error);
       } else {
         setSuccess(true);
-        // Reset form
         setReason("");
-        setHours(1.0);
+        setHours(isVacation ? 8.0 : 1.0);
         setType(RequestType.OVERTIME);
         
-        // Close modal after showing success animation
         setTimeout(() => {
           setIsOpen(false);
           setSuccess(false);
@@ -50,7 +59,23 @@ export default function SubmitRequestModal() {
   };
 
   const adjustHours = (amount: number) => {
-    setHours((prev) => Math.max(0.25, +(prev + amount).toFixed(2)));
+    setHours((prev) => Math.max(isVacation ? 4.0 : 0.25, +(prev + amount).toFixed(2)));
+  };
+
+  const handleTypeChange = (newType: RequestType) => {
+    setType(newType);
+    if (newType === RequestType.VACATION) {
+      setHours(8.0); // Default: 1 Tag
+    } else {
+      setHours(1.0);
+    }
+  };
+
+  const placeholderMap: Record<RequestType, string> = {
+    [RequestType.OVERTIME]: "Z.B. Patientenüberhang Sprechstunde, Späte OP...",
+    [RequestType.COMPENSATION]: "Z.B. Früher nach Hause gegangen, Zahnarzt...",
+    [RequestType.VACATION]: "Z.B. Jahresurlaub, Familienfeier, Brückentag...",
+    [RequestType.OVERTIME_REDUCTION]: "Z.B. Überstundenabbau, Gleitzeit-Ausgleich...",
   };
 
   return (
@@ -85,7 +110,6 @@ export default function SubmitRequestModal() {
           <div className="modal-content" style={{ border: success ? "1px solid var(--success-border)" : "1px solid var(--surface-border)" }}>
             
             {success ? (
-              /* Success Panel with micro-animation */
               <div style={{
                 padding: "3rem 2rem",
                 textAlign: "center",
@@ -115,11 +139,10 @@ export default function SubmitRequestModal() {
                   Erfolgreich gesendet!
                 </h3>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
-                  Dein Antrag wurde eingereicht und deine Frau per WhatsApp benachrichtigt.
+                  Dein Antrag wurde eingereicht und die Praxisleitung per WhatsApp benachrichtigt.
                 </p>
               </div>
             ) : (
-              /* Main Form */
               <form onSubmit={handleSubmit}>
                 <div className="modal-header">
                   <h3 style={{ fontWeight: "700", fontSize: "1.25rem", color: "var(--text-main)" }}>
@@ -160,28 +183,41 @@ export default function SubmitRequestModal() {
                     </div>
                   )}
 
-                  {/* Type Selection (Segmented Control) */}
+                  {/* Type Selection (2x2 Grid) */}
                   <label className="form-label">Eintragsart</label>
-                  <div className="segmented-control">
-                    <div
-                      className={`segmented-option ${type === RequestType.OVERTIME ? "active" : ""}`}
-                      onClick={() => setType(RequestType.OVERTIME)}
-                      style={{ color: type === RequestType.OVERTIME ? "var(--success)" : "var(--text-muted)" }}
-                    >
-                      ➕ Überstunden
-                    </div>
-                    <div
-                      className={`segmented-option ${type === RequestType.COMPENSATION ? "active" : ""}`}
-                      onClick={() => setType(RequestType.COMPENSATION)}
-                      style={{ color: type === RequestType.COMPENSATION ? "var(--primary-light)" : "var(--text-muted)" }}
-                    >
-                      ➖ Freizeitausgleich
-                    </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1.25rem" }}>
+                    {(Object.keys(TYPE_CONFIG) as RequestType[]).map((t) => {
+                      const cfg = TYPE_CONFIG[t];
+                      const isActive = type === t;
+                      return (
+                        <div
+                          key={t}
+                          onClick={() => handleTypeChange(t)}
+                          style={{
+                            padding: "0.65rem 0.5rem",
+                            borderRadius: "var(--radius-sm)",
+                            border: isActive ? `2px solid ${cfg.color}` : "2px solid var(--surface-border)",
+                            backgroundColor: isActive ? `${cfg.color}15` : "var(--surface)",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            fontSize: "0.85rem",
+                            fontWeight: isActive ? "700" : "500",
+                            color: isActive ? cfg.color : "var(--text-muted)",
+                            transition: "all 0.15s ease",
+                            userSelect: "none"
+                          }}
+                        >
+                          {cfg.emoji} {cfg.label}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Date Input */}
                   <div className="form-group">
-                    <label className="form-label" htmlFor="request-date">Datum</label>
+                    <label className="form-label" htmlFor="request-date">
+                      {isVacation ? "Startdatum" : "Datum"}
+                    </label>
                     <input
                       id="request-date"
                       type="date"
@@ -192,47 +228,30 @@ export default function SubmitRequestModal() {
                     />
                   </div>
 
-                  {/* Hours Custom Stepper */}
+                  {/* Hours/Days Custom Stepper */}
                   <div className="form-group" style={{ marginBottom: "1.5rem" }}>
                     <label className="form-label" style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Dauer</span>
-                      <span style={{ fontWeight: "700", color: "var(--primary-light)" }}>{hours.toFixed(2).replace(".", ",")} Std.</span>
+                      <span>{isVacation ? "Dauer (Tage)" : "Dauer"}</span>
+                      <span style={{ fontWeight: "700", color: TYPE_CONFIG[type].color }}>
+                        {displayValue} {unit}
+                      </span>
                     </label>
                     
-                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <button
-                        type="button"
-                        onClick={() => adjustHours(-1.0)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}
-                      >
-                        -1.0
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustHours(-0.25)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}
-                      >
-                        -0.25
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustHours(0.25)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}
-                      >
-                        +0.25
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustHours(1.0)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}
-                      >
-                        +1.0
-                      </button>
-                    </div>
+                    {isVacation ? (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <button type="button" onClick={() => adjustHours(-8.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>-1 Tag</button>
+                        <button type="button" onClick={() => adjustHours(-4.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>-½ Tag</button>
+                        <button type="button" onClick={() => adjustHours(4.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>+½ Tag</button>
+                        <button type="button" onClick={() => adjustHours(8.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>+1 Tag</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        <button type="button" onClick={() => adjustHours(-1.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>-1.0</button>
+                        <button type="button" onClick={() => adjustHours(-0.25)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>-0.25</button>
+                        <button type="button" onClick={() => adjustHours(0.25)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>+0.25</button>
+                        <button type="button" onClick={() => adjustHours(1.0)} className="btn btn-secondary" style={{ flex: 1, padding: "0.5rem", borderRadius: "var(--radius-sm)" }}>+1.0</button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Reason Text Area */}
@@ -242,11 +261,7 @@ export default function SubmitRequestModal() {
                       id="request-reason"
                       className="form-control"
                       rows={3}
-                      placeholder={
-                        type === RequestType.OVERTIME
-                          ? "Z.B. Patientenüberhang Sprechstunde, Späte OP..."
-                          : "Z.B. Früher nach Hause gegangen, Zahnarzt..."
-                      }
+                      placeholder={placeholderMap[type]}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       required
@@ -280,7 +295,6 @@ export default function SubmitRequestModal() {
         </div>
       )}
 
-      {/* Embedded fade-in animation */}
       <style jsx global>{`
         @keyframes fadeIn {
           from { opacity: 0; }

@@ -28,8 +28,17 @@ export async function sendWhatsAppNotification(data: {
     year: "numeric",
   });
 
-  const typeString = data.type === RequestType.OVERTIME ? "➕ Überstunden" : "➖ Freizeitausgleich";
-  const hoursString = `${data.hours.toFixed(2).replace(".", ",")} Std.`;
+  const typeLabels: Record<string, string> = {
+    OVERTIME: "➕ Überstunden",
+    COMPENSATION: "➖ Freizeitausgleich",
+    VACATION: "🏖️ Urlaub",
+    OVERTIME_REDUCTION: "⏳ Überstundenabbau",
+  };
+  const typeString = typeLabels[data.type] || data.type;
+  const isVacation = data.type === RequestType.VACATION;
+  const hoursString = isVacation
+    ? `${(data.hours / 8).toFixed(1).replace(".", ",")} Tage`
+    : `${data.hours.toFixed(2).replace(".", ",")} Std.`;
 
   const message = 
 `⏰ *Neuer Antrag eingereicht!*

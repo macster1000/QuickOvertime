@@ -25,7 +25,7 @@ async function main() {
   console.log("Created admin account:", admin.name);
 
   // Create Employees
-  const names = ["Sarah", "Emma", "Lisa", "Marie", "Hannah"];
+  const names = ["Schultz", "Huth", "Korn", "Hell", "Yousuf-Mahnke", "Dinkelacker", "Wiedenhofer"];
   const employees = [];
 
   for (const name of names) {
@@ -55,25 +55,52 @@ async function main() {
     "Freizeitausgleich für OP-Begleitung letzte Woche",
   ];
 
+  const reasonsVacation = [
+    "Jahresurlaub",
+    "Familienurlaub geplant",
+    "Brückentag",
+    "Kurzurlaub verlängertes Wochenende",
+  ];
+
+  const reasonsOvertimeReduction = [
+    "Überstundenabbau - halber Tag frei",
+    "Gleitzeit-Ausgleich",
+    "Überstunden abbauen wegen Arzttermin",
+  ];
+
   const statusOptions = [Status.APPROVED, Status.APPROVED, Status.APPROVED, Status.PENDING, Status.REJECTED];
 
   // Seed requests
   for (const emp of employees) {
-    // Generate 3-5 requests for each
-    const numRequests = Math.floor(Math.random() * 3) + 3; // 3 to 5
+    // Generate 4-6 requests for each
+    const numRequests = Math.floor(Math.random() * 3) + 4;
     for (let i = 0; i < numRequests; i++) {
-      const type = Math.random() > 0.3 ? RequestType.OVERTIME : RequestType.COMPENSATION;
-      const hours = type === RequestType.OVERTIME 
-        ? [0.5, 1.0, 1.5, 2.0, 2.5][Math.floor(Math.random() * 5)]
-        : [1.0, 2.0, 3.5, 4.0][Math.floor(Math.random() * 4)];
+      const rand = Math.random();
+      let type: RequestType;
+      let hours: number;
+      let reason: string;
 
-      const reason = type === RequestType.OVERTIME
-        ? reasonsOvertime[Math.floor(Math.random() * reasonsOvertime.length)]
-        : reasonsCompensation[Math.floor(Math.random() * reasonsCompensation.length)];
+      if (rand < 0.35) {
+        type = RequestType.OVERTIME;
+        hours = [0.5, 1.0, 1.5, 2.0, 2.5][Math.floor(Math.random() * 5)];
+        reason = reasonsOvertime[Math.floor(Math.random() * reasonsOvertime.length)];
+      } else if (rand < 0.55) {
+        type = RequestType.COMPENSATION;
+        hours = [1.0, 2.0, 3.5, 4.0][Math.floor(Math.random() * 4)];
+        reason = reasonsCompensation[Math.floor(Math.random() * reasonsCompensation.length)];
+      } else if (rand < 0.80) {
+        type = RequestType.VACATION;
+        hours = [8.0, 16.0, 24.0, 40.0][Math.floor(Math.random() * 4)]; // 1-5 Tage
+        reason = reasonsVacation[Math.floor(Math.random() * reasonsVacation.length)];
+      } else {
+        type = RequestType.OVERTIME_REDUCTION;
+        hours = [2.0, 4.0, 6.0, 8.0][Math.floor(Math.random() * 4)];
+        reason = reasonsOvertimeReduction[Math.floor(Math.random() * reasonsOvertimeReduction.length)];
+      }
 
       const status = statusOptions[Math.floor(Math.random() * statusOptions.length)];
       const date = new Date();
-      date.setDate(date.getDate() - Math.floor(Math.random() * 20) - 1); // 1 to 20 days ago
+      date.setDate(date.getDate() - Math.floor(Math.random() * 30) - 1);
 
       let adminComment = null;
       if (status === Status.REJECTED) {

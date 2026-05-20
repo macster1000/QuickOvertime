@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import PendingQueue from "./PendingQueue";
 import EmployeeManager from "./EmployeeManager";
 import ExportSection from "./ExportSection";
+import CalendarView from "./CalendarView";
+import AdminTabs from "./AdminTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,7 @@ export default async function AdminPage() {
       },
     },
     orderBy: {
-      date: "asc", // Oldest pending first
+      date: "asc",
     },
   });
 
@@ -49,7 +51,7 @@ export default async function AdminPage() {
       .filter((r) => r.type === RequestType.OVERTIME)
       .reduce((sum, r) => sum + r.hours, 0);
     const minus = emp.requests
-      .filter((r) => r.type === RequestType.COMPENSATION)
+      .filter((r) => r.type === RequestType.COMPENSATION || r.type === RequestType.OVERTIME_REDUCTION)
       .reduce((sum, r) => sum + r.hours, 0);
     
     return {
@@ -69,6 +71,20 @@ export default async function AdminPage() {
 
   // 4. Prepare data for the custom CSS-based bar chart
   const maxBalance = Math.max(...employeesWithBalances.map((e) => Math.abs(e.balance)), 5);
+
+  // 5. Fetch all requests for calendar view (not just pending)
+  const allRequests = await db.request.findMany({
+    include: {
+      employee: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      date: "asc",
+    },
+  });
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -147,7 +163,7 @@ export default async function AdminPage() {
             Praxis-Zentrale
           </h2>
           <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
-            Verwalte die Überstunden-Freigaben und überprüfe die Auswertungen deines Teams.
+            Verwalte Anträge, Überstunden und Abwesenheiten deines Teams.
           </p>
         </div>
 
@@ -242,88 +258,14 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        {/* Dashboard Grid Sections */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
-          gap: "2.5rem",
-          alignItems: "flex-start"
-        }}>
-          
-          {/* Left Column: Inbox Freigaben & DATEV Export */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-            <div>
-              <h3 style={{ fontSize: "1.25rem", fontWeight: "700", color: "var(--text-main)", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                📥 Freigabe-Queue
-                {totalPending > 0 && (
-                  <span style={{ backgroundColor: "var(--danger)", color: "#ffffff", fontSize: "0.75rem", padding: "2px 8px", borderRadius: "var(--radius-full)", fontWeight: "700" }}>
-                    {totalPending}
-                  </span>
-                )}
-              </h3>
-              <PendingQueue initialRequests={pendingRequests} />
-            </div>
-
-            <ExportSection />
-          </div>
-
-          {/* Right Column: Visual Charts & Team-Verwaltung */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
-            {/* Visual Overtime Bar Chart */}
-            <div>
-              <h3 style={{ fontSize: "1.25rem", fontWeight: "700", color: "var(--text-main)", marginBottom: "1rem" }}>
-                📊 Saldo-Übersicht (Team)
-              </h3>
-              <div className="card" style={{ padding: "2rem 1.5rem" }}>
-                {employeesWithBalances.length === 0 ? (
-                  <p style={{ textAlign: "center", color: "var(--text-muted)" }}>Keine Daten für das Diagramm vorhanden.</p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    {employeesWithBalances.map((emp) => {
-                      const pct = Math.max(5, Math.min(100, (Math.abs(emp.balance) / maxBalance) * 100));
-                      const isPositive = emp.balance >= 0;
-
-                      return (
-                        <div key={emp.id} style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", fontWeight: "500" }}>
-                            <span style={{ color: emp.active ? "var(--text-main)" : "var(--text-muted)" }}>
-                              {emp.name} {!emp.active && "(Inaktiv)"}
-                            </span>
-                            <span style={{ fontWeight: "700", color: isPositive ? "var(--success)" : "var(--primary-light)" }}>
-                              {isPositive ? "+" : ""}{emp.balance.toFixed(1).replace(".", ",")} Std.
-                            </span>
-                          </div>
-                          {/* Beautiful CSS bar gradient */}
-                          <div style={{
-                            width: "100%",
-                            height: "0.75rem",
-                            backgroundColor: "var(--background)",
-                            borderRadius: "var(--radius-full)",
-                            overflow: "hidden"
-                          }}>
-                            <div style={{
-                              width: `${pct}%`,
-                              height: "100%",
-                              borderRadius: "var(--radius-full)",
-                              background: isPositive 
-                                ? "linear-gradient(90deg, var(--success-bg), var(--success))"
-                                : "linear-gradient(90deg, var(--primary-glow), var(--primary-light))",
-                              transition: "width 0.5s ease-in-out"
-                            }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Team Manager */}
-            <EmployeeManager initialEmployees={employeesWithBalances} />
-          </div>
-
-        </div>
+        {/* Tabbed Content Area */}
+        <AdminTabs
+          totalPending={totalPending}
+          pendingRequests={pendingRequests}
+          employeesWithBalances={employeesWithBalances}
+          maxBalance={maxBalance}
+          allRequests={allRequests}
+        />
 
       </main>
 

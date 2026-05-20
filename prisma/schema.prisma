@@ -15,8 +15,10 @@ enum Role {
 }
 
 enum RequestType {
-  OVERTIME     // Plusstunden (+)
-  COMPENSATION // Freizeitausgleich (-)
+  OVERTIME           // Plusstunden (+)
+  COMPENSATION       // Freizeitausgleich (-)
+  VACATION           // Urlaub
+  OVERTIME_REDUCTION // Überstundenabbau
 }
 
 enum Status {

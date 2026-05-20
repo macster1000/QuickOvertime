@@ -74,11 +74,19 @@ export async function GET(request: NextRequest) {
         year: "numeric",
       });
 
-      const typeLabel = req.type === RequestType.OVERTIME ? "Überstunden" : "Freizeitausgleich";
+      const typeLabelMap: Record<string, string> = {
+        OVERTIME: "Überstunden",
+        COMPENSATION: "Freizeitausgleich",
+        VACATION: "Urlaub",
+        OVERTIME_REDUCTION: "Überstundenabbau",
+      };
+      const typeLabel = typeLabelMap[req.type] || req.type;
       
       // German number format: e.g. 1.5 -> "1,5" or -2 -> "-2,00"
-      // Since type is COMPENSATION, let's export it as negative hours for easy DATEV/Excel calculations!
-      const signedHours = req.type === RequestType.COMPENSATION ? -req.hours : req.hours;
+      // Compensation and OvertimeReduction exported as negative hours for easy DATEV/Excel calculations
+      const signedHours = (req.type === RequestType.COMPENSATION || req.type === RequestType.OVERTIME_REDUCTION)
+        ? -req.hours
+        : req.hours;
       const formattedHours = signedHours.toFixed(2).replace(".", ",");
       
       // Escape quotes and semi-colons in text fields to prevent CSV injection

@@ -29,7 +29,7 @@ export default async function DashboardPage() {
     orderBy: { date: "desc" },
   });
 
-  // 3. Compute running balance (Approved Overtime - Approved Compensation)
+  // 3. Compute running balance (Approved Overtime - Approved Compensation - Approved OvertimeReduction)
   const approvedOvertimeSum = await db.request.aggregate({
     _sum: { hours: true },
     where: {
@@ -48,8 +48,17 @@ export default async function DashboardPage() {
     },
   });
 
+  const approvedOvertimeReductionSum = await db.request.aggregate({
+    _sum: { hours: true },
+    where: {
+      employeeId: session.id,
+      type: RequestType.OVERTIME_REDUCTION,
+      status: Status.APPROVED,
+    },
+  });
+
   const plusHours = approvedOvertimeSum._sum.hours || 0;
-  const minusHours = approvedCompensationSum._sum.hours || 0;
+  const minusHours = (approvedCompensationSum._sum.hours || 0) + (approvedOvertimeReductionSum._sum.hours || 0);
   const balance = plusHours - minusHours;
 
   const isPositiveBalance = balance >= 0;
@@ -205,7 +214,17 @@ export default async function DashboardPage() {
                       year: "numeric",
                     });
 
-                    const isOvertime = req.type === RequestType.OVERTIME;
+                    const typeMap: Record<string, { label: string; emoji: string; color: string; sign: string }> = {
+                      OVERTIME: { label: "Überstunden", emoji: "➕", color: "var(--success)", sign: "+" },
+                      COMPENSATION: { label: "Ausgleich", emoji: "➖", color: "var(--primary-light)", sign: "-" },
+                      VACATION: { label: "Urlaub", emoji: "🏖️", color: "hsl(32, 95%, 55%)", sign: "" },
+                      OVERTIME_REDUCTION: { label: "ÜStd.-Abbau", emoji: "⏳", color: "hsl(280, 70%, 60%)", sign: "-" },
+                    };
+                    const tCfg = typeMap[req.type] || typeMap.OVERTIME;
+                    const isVacation = req.type === RequestType.VACATION;
+                    const displayVal = isVacation
+                      ? `${(req.hours / 8).toFixed(1).replace(".", ",")} Tage`
+                      : `${tCfg.sign}${req.hours.toFixed(2).replace(".", ",")} Std.`;
                     
                     return (
                       <tr key={req.id}>
@@ -216,13 +235,13 @@ export default async function DashboardPage() {
                             alignItems: "center",
                             gap: "0.25rem",
                             fontSize: "0.9rem",
-                            color: isOvertime ? "var(--success)" : "var(--primary-light)"
+                            color: tCfg.color
                           }}>
-                            {isOvertime ? "➕ Plus" : "➖ Ausgleich"}
+                            {tCfg.emoji} {tCfg.label}
                           </span>
                         </td>
                         <td style={{ fontWeight: "600" }}>
-                          {isOvertime ? "+" : "-"}{req.hours.toFixed(2).replace(".", ",")} Std.
+                          {displayVal}
                         </td>
                         <td style={{
                           maxWidth: "240px",
