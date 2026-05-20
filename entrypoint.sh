@@ -1,10 +1,10 @@
 #!/bin/sh
 
 echo "Running database schema sync..."
-npx prisma db push --skip-generate
+npx prisma db push
 
 echo "Running database seeding (if empty)..."
-npx prisma db seed
+npx tsx prisma/seed.ts
 
 echo "Starting Next.js application..."
 exec npm run start
